@@ -19,6 +19,9 @@
  *
  * Contributor(s):
  *
+ * Martin Reckziegel
+ * Andreas Thienemann
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
  * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -69,6 +72,10 @@ Weave.Chromium = {
         //TODO ensure that we're configured (user, password, etc.)
         this.saveOptions();
 
+        var errback = function() {
+            console.log.apply(console,arguments);
+        }
+
         this.status = "connecting";
         this.sendEvent("WeaveSyncConnecting");
 
@@ -78,9 +85,9 @@ Weave.Chromium = {
                 Weave.Client.ensureClientGUID(function () {
                     self.status = "connected";
                     self.sendEvent("WeaveSyncConnected");
-                });
-            });
-        });
+                },errback);
+            },errback);
+        },errback);
     },
 
     disconnect: function () {
