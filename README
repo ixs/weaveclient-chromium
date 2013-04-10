@@ -1,0 +1,37 @@
+Weave Sync for Chromium
+=======================
+
+This is an EXPERIMENTAL extension for the Google Chrome browser
+(a.k.a. Chromium).  It allows one to synchronize bookmarks and tabs
+with Mozilla's Weave service.
+
+As Google Chrome extensions are implemented in pure JavaScript, this
+essentially contains a Weave client implementation in that language.
+It can therefore be used in other browsers as well, for instance by
+embedding it into a website.  However, since AJAX requests are subject
+to the same-origin policy, queries to the Weave storage nodes will not
+work directly but have to be handled by the web application in
+question and then forwarded to the corresponding Weave storage node.
+A simple application of this kind for the Google App Engine platform
+is contained in this directory as well.  It can be tried out under
+http://weavebrowser.appspot.com.
+
+
+Credits
+-------
+
+* Philipp von Weitershausen wrote the JavaScript Weave client and this
+  extension.
+
+* Anant Narayanan put together many of the cryptographic building
+  blocks in the 'weaveweb' project.
+
+* Tom Wu is the author of the jsbn RSA cryptography library (jsbn/*).
+
+* B. Poettering implemented the AES cryptography routines (weave/aes.js).
+
+* Paul Johnston et.al. implemented the SHA1 and SHA256 algorithms
+  (weave/sha.js).
+
+* The style elements (logos, background, etc.) were copied from the
+  Weave Sync add-on for Firefox, created by Mozilla Corporation.

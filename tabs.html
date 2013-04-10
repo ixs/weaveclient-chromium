@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tabs from Other Computers</title>
+  <script type="text/javascript" src="jquery.js"></script>
+  <script>
+var background = chrome.extension.getBackgroundPage();
+var Weave = background.Weave;
+
+function onLoad() {
+    var node;
+    var wbos = Weave.Chromium.Tabs.wbos;
+    for (var id in wbos) {
+        if (!wbos[id].tabs || !wbos[id].tabs.length) {
+            continue;
+        }
+
+        node = jQuery('#client-template').clone();
+        node.attr('id', 'client-' + id);
+        node.find('h2').text(wbos[id].clientName);
+        var list = node.find('.tabs');
+
+        wbos[id].tabs.forEach(function (tab) {
+            var tabnode = jQuery('#tab-template').clone();
+            tabnode.removeAttr('id');
+            tabnode.find('img').attr('src', tab.icon);
+            var url = tab.urlHistory[tab.urlHistory.length-1];
+            tabnode.find('a').attr('href', url).text(tab.title || url);
+            tabnode.appendTo(list);
+        });
+
+        node.appendTo('#clients');
+    }
+}
+  </script>
+  <link rel="stylesheet" type="text/css" href="skin/theme.css" />
+  <style>
+.tabs {
+    list-style: none outside none;
+}
+
+.tab {
+    padding: 3px 0;
+}
+
+.favicon {
+    max-width: 16px;
+    max-height: 16px;
+}
+  </style>
+</head>
+
+<body onload="onLoad();">
+<div id="content">
+
+<h1>Tabs from Other Computers</h1>
+
+<div id="clients">
+</div>
+
+
+<div id="templates" style="display:none;">
+
+  <div id="client-template">
+    <h2>Client</h2>
+    <ul class="tabs">
+    </ul>
+  </div>
+
+  <ul>
+    <li id="tab-template" class="tab">
+      <img src="" class="favicon" />
+      <a href=""></a>
+    </li>
+  </ul>
+
+</div>
+
+</div>
+</body>
+</html>

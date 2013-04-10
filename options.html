@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Weave Sync Options</title>
+  <script type="text/javascript" src="jquery.js"></script>
+  <script>
+var background = chrome.extension.getBackgroundPage();
+var Weave = background.Weave;
+var options = Weave.Chromium.options;
+
+function fillFormFields () {
+    // Initialize form fields with stored values
+    var optionElementIds = ["server", "user", "password", "passphrase"];
+    optionElementIds.forEach(function (id) {
+        var input = document.getElementById(id);
+        if (options[id]) {
+            input.value = options[id];
+        } else {
+            input.value = '';
+        }
+        input.addEventListener("blur", onInputBlur, "blurred");
+    });
+    jQuery('#clientGUID').text(options.client.id);
+}
+
+function onLoad () {
+    fillFormFields();
+
+    background.addEventListener("WeaveSyncConnecting", onConnecting, false);
+    background.addEventListener("WeaveSyncConnected", onConnected, false);
+    background.addEventListener("WeaveSyncDisconnected", onDisconnected, false);
+    background.addEventListener("WeaveSyncSyncBegin", onSyncBegin, false);
+    background.addEventListener("WeaveSyncSyncEnd", onSyncEnd, false);
+
+    // Make sure the UI reflects what the client is doing at the moment.
+    switch (Weave.Chromium.status) {
+    case "disconnected":
+        onDisconnected();
+        break;
+    case "connecting":
+        onConnecting();
+        break;
+    case "connected":
+        onConnected();
+        break;
+    case "syncing":
+        onSyncBegin();
+        break;
+    }
+}
+
+// Event handlers when buttons are pressed
+
+function onConnectButton () {
+    switch (Weave.Chromium.status) {
+    case "disconnected":
+        Weave.Chromium.connect();
+        return;
+    case "connected":
+        Weave.Chromium.disconnect();
+        return;
+    default:
+        // Shouldn't get here, but you never know
+        return;
+    }
+}
+
+function onResetButton () {
+    if (Weave.Chromium.status !== "disconnected") {
+        return;
+    }
+    Weave.Chromium.reset();
+    options = Weave.Chromium.options;
+    fillFormFields();
+}
+
+function onSyncButton () {
+    if (Weave.Chromium.status !== "connected") {
+        return;
+    }
+    Weave.Chromium.sync();
+}
+
+
+// Event handlers for updating the UI when Weave.Chromium does something
+
+function onConnecting () {
+    var button = jQuery('#connect-button');
+    button.attr('disabled', 'disabled');
+    button.text('Connecting...');
+}
+
+function onConnected () {
+    var button = jQuery('#connect-button');
+    button.removeAttr('disabled');
+    button.text('Disconnect');
+    jQuery('#sync-button').removeAttr('disabled');
+}
+
+function onDisconnected () {
+    var button = jQuery('#connect-button');
+    button.removeAttr('disabled');
+    button.text('Connect');
+    jQuery('#sync-button').attr('disabled', 'disabled');
+}
+
+function onSyncBegin () {
+    var button = jQuery('#sync-button');
+    button.attr('disabled', 'disabled');
+    button.text('Syncing...');
+    jQuery('#connect-button').attr('disabled', 'disabled');
+}
+
+function onSyncEnd () {
+    var button = jQuery('#sync-button');
+    button.removeAttr('disabled');
+    button.text('Sync');
+    jQuery('#sync-button').removeAttr('disabled');
+    jQuery('#connect-button').removeAttr('disabled');
+}
+
+function onInputBlur (event) {
+    if (Weave.Chromium.status !== "disconnected") {
+        return;
+    }
+    options[event.target.id] = event.target.value;
+    //XXX is this a good idea? we could be syncing atm...
+    Weave.Chromium.saveOptions();
+}
+
+  </script>
+  <link rel="stylesheet" type="text/css" href="skin/theme.css" />
+  <style>
+body {
+    width: 400px;
+}
+
+fieldset {
+    border: 1px solid #aaaaaa;
+    -webkit-border-radius: 5px;
+    padding: 10px;
+}
+
+#fieldstable {
+    width: 100%;
+}
+
+legend {
+    font-weight: bold;
+}
+
+.label {
+    font-weight: normal;
+    text-align: right;
+    padding-right: 10px;
+}
+
+input {
+    width: 100%;
+    height: 16px;
+    margin: 3px 0;
+}
+
+#buttons {
+    margin-top: 10px;
+    text-align: center;
+}
+  </style>
+</head>
+
+<body onload="onLoad();">
+<div id="content">
+
+<h1>Weave Sync Options</h1>
+
+<fieldset id="options">
+<legend>Options</legend>
+
+<table id="fieldstable">
+  <tr>
+    <td class="label"><label for="clientGUID">Client GUID:</label></td>
+    <td id="clientGUID"></td>
+  </tr>
+  <tr>
+    <td class="label"><label for="server">Server:</label></td>
+    <td><input id="server" type="text" /></td>
+  </tr>
+  <tr>
+    <td class="label"><label for="user">Username:</label></td>
+    <td><input id="user" type="text" /></td>
+  </tr>
+  <tr>
+    <td class="label"><label for="password">Password:</label></td>
+    <!-- TODO should be type="password" -->
+    <td><input id="password" type="text" /></td>
+  </tr>
+  <tr>
+    <td class="label"><label for="passphrase">Passphrase:</label></td>
+    <!-- TODO should be type="password" -->
+    <td><input id="passphrase" type="text" /></td>
+  </tr>
+</table>
+</fieldset>
+
+<div id="buttons">
+  <button id="connect-button"
+          onclick="onConnectButton();">Connect</button>
+  <button id="reset-button"
+          onclick="onResetButton();">Reset</button>
+  <button id="sync-button"
+          onclick="onSyncButton();"
+          disabled="disabled">Sync</button>
+</div>
+
+</div>
+</body>
+</html>

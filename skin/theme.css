@@ -1,0 +1,27 @@
+body {
+    font-family: Helvetica, sans-serif;
+    font-size: 13px;
+    margin: 0 auto;
+    width: 600px;
+    background-image: url(bg.png);
+    background-repeat: no-repeat;
+}
+
+#content {
+    margin: 10px;
+    padding: 20px;
+    border: 2px solid #aaaaaa;
+    -moz-border-radius: 10px;
+    -webkit-border-radius: 10px;
+    background-color: white;
+}
+
+h1 {
+    background-image: url(sync-48x48.png);
+    background-repeat: no-repeat;
+    background-position: left top;
+    font-size: 24px;
+    padding-left: 56px;
+    padding-top: 14px;
+    margin-top: 0;
+}

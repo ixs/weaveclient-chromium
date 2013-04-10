@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Weave to go</title>
+  <script type="text/javascript" src="weave/client.js"></script>
+  <script type="text/javascript" src="weave/util.js"></script>
+  <script type="text/javascript" src="weave/sha.js"></script>
+  <script type="text/javascript" src="weave/pkcs5v2.js"></script>
+  <script type="text/javascript" src="weave/aes.js"></script>
+  <script type="text/javascript" src="weave/asn1.js"></script>
+
+  <script type="text/javascript" src="jsbn/jsbn.js"></script>
+  <script type="text/javascript" src="jsbn/jsbn2.js"></script>
+  <script type="text/javascript" src="jsbn/prng4.js"></script>
+  <script type="text/javascript" src="jsbn/rng.js"></script>
+  <script type="text/javascript" src="jsbn/rsa.js"></script>
+  <script type="text/javascript" src="jsbn/rsa2.js"></script>
+
+  <script type="text/javascript" src="jquery.js"></script>
+  <script>
+function login (callback) {
+    //XXX TODO error handling
+    var options = {
+        server: window.location.protocol + '//' + window.location.host,
+        storageUrl: window.location.protocol + '//' + window.location.host,
+        storageUrlOverrides: true,
+        user: document.getElementById('user').value,
+        password: document.getElementById('password').value,
+        passphrase: document.getElementById('passphrase').value
+    };
+    Weave.Client.connect(options);
+    Weave.Client.ensureKeys(function () {
+        callback();
+    });
+}
+
+function showTabs () {
+    Weave.Client.loadCollectionDecrypt('tabs', function (data) {
+        data.forEach(function (wbo) {
+            if (!wbo.tabs.length) {
+                return;
+            }
+
+            var node = jQuery('#client-template').clone();
+            node.attr('id', 'client-' + wbo.id);
+            node.find('h2').text(wbo.clientName);
+            var list = node.find('.tabs');
+
+            wbo.tabs.forEach(function (tab) {
+                var tabnode = jQuery('#tab-template').clone();
+                tabnode.removeAttr('id');
+                tabnode.find('img').attr('src', tab.icon);
+                var url = tab.urlHistory[tab.urlHistory.length-1];
+                tabnode.find('a').attr('href', url).text(tab.title);
+                tabnode.appendTo(list);
+            });
+
+            node.appendTo('#clients');
+        });
+        jQuery('#throbber').hide();
+        jQuery('#logintabs-button').removeAttr('disabled');
+    });
+}
+
+function loginAndShowTabs () {
+    jQuery('#clients').empty();
+    jQuery('#throbber').show();
+    jQuery('#logintabs-button').attr('disabled', 'disabled');
+
+    login(function () {
+        showTabs();
+    });
+}
+  </script>
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="stylesheet" type="text/css" href="skin/theme.css" />
+  <style>
+
+fieldset {
+    border: 1px solid #aaaaaa;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 20px;
+    clear: both;
+}
+
+legend {
+    font-weight: bold;
+}
+
+.formfield {
+    width: 100%;
+    clear: left;
+    float: right;
+    display: block;
+}
+
+label {
+    display: block;
+    float: left;
+    text-align: right;
+    width: 120px;
+    margin: 4px 0 0 0;
+    padding: 5px 10px 1px 0;
+}
+
+input {
+    width: 350px;
+    height: 16px;
+    margin: 3px 0;
+}
+
+.note {
+    font-size: 80%;
+    margin: 5px 20px 5px 130px;
+}
+
+#buttons {
+    text-align: center;
+}
+
+.tabs {
+    list-style: none outside none;
+}
+
+.tab {
+    padding: 3px 0;
+}
+
+.favicon {
+    max-width: 16px;
+    max-height: 16px;
+}
+
+.footer {
+    text-align: center;
+    font-size: 80%;
+    margin-top: 25px;
+}
+  </style>
+</head>
+<body>
+<div id="content">
+
+<h1>Weave to go</h1>
+
+<fieldset id="credentials">
+  <legend>Credentials for the Weave service</legend>
+
+  <div class="formfield">
+    <label for="user">User:</label>
+    <input id="user" type="text" />
+  </div>
+
+  <div class="formfield">
+    <label for="password">Password:</label>
+    <input id="password" type="password" />
+  </div>
+</fieldset>
+
+<fieldset id="credentials">
+  <legend>Private key passphrase</legend>
+
+  <div class="formfield">
+    <label for="passphrase">Passphrase:</label>
+    <input id="passphrase" type="password" />
+    <p class="note">Note: Your passphrase is not sent over the wire.  It
+      is merely used to decrypt your private key locally in the browser.</p>
+  </div>
+</fieldset>
+
+<div id="buttons">
+  <!--
+  <button id="login-button" onclick="login();">Log in</button>
+  <button id="tabs-button" onclick="showTabs();">Show tabs</button>
+  -->
+  <button id="logintabs-button" onclick="loginAndShowTabs();">Show my tabs</button>
+</div>
+
+
+<div id="clients">
+</div>
+
+<img id="throbber" src="skin/throbber.gif" style="display:none;" />
+
+
+<div id="templates" style="display:none;">
+
+  <div id="client-template">
+    <h2>Client</h2>
+    <ul id="tabs" class="tabs">
+    </ul>
+  </div>
+
+  <ul>
+    <li id="tab-template" class="tab">
+      <img src="" class="favicon" />
+      <a href=""></a>
+    </li>
+  </ul>
+
+</div>
+
+<div class="footer">
+<footer>
+Written by
+<a href="http://philikon.de">Philipp von Weitershausen</a>.<br>
+Use at your own risk.  Your mileage may vary.  Bla bla bla.<br>
+Fancy a look at the
+<a href="http://bitbucket.org/philikon/weaveclient-chromium">source code</a>?
+</footer>
+</div>
+
+</div>
+</body>
+</html>
