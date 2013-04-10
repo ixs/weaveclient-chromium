@@ -218,9 +218,8 @@ Weave.Util.Base32 = (function() {
     // is turned into 8 characters from the 32 character base.
     var ret = "";
     for (var i = 0; i < bytes.length; i += 5) {
-//      var c = [byte.charCodeAt() for each (byte in bytes.slice(i, i + 5))];
       var c = Array();
-      for (byte in bytes.slice(0, 0 + 5)) { c.push(bytes[byte].charCodeAt()) };
+      for (pos in bytes.slice(i, i + 5)) { c.push(bytes.slice(i, i + 5)[pos].charCodeAt()) };
       ret += key[c[0] >> 3]
            + key[((c[0] << 2) & 0x1f) | (c[1] >> 6)]
            + key[(c[1] >> 1) & 0x1f]
