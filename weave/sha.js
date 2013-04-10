@@ -36,6 +36,10 @@ Weave.Util.SHA = function () {
   function any_sha256(s, e) { return rstr2any(rstr_sha256(str2rstr_utf8(s)), e); }
   function hex_hmac_sha256(k, d)
     { return rstr2hex(rstr_hmac_sha256(str2rstr_utf8(k), str2rstr_utf8(d))); }
+  //dont convert utf16 -> utf8, who assumes javascript strings are utf16...
+  //this function takes javascript strings as input, high bytes of the characters are ignored
+  function hex_hmac_sha256_utf8(k, d)
+    { return rstr2hex(rstr_hmac_sha256(k, d)); }
   function b64_hmac_sha256(k, d)
     { return rstr2b64(rstr_hmac_sha256(str2rstr_utf8(k), str2rstr_utf8(d))); }
   function any_hmac_sha256(k, d, e)
@@ -474,7 +478,8 @@ Weave.Util.SHA = function () {
     digest256: hex_sha256,
     digest256_str: rstr_sha256,
     digest256_b64: b64_sha256,
-    hmac256: hex_hmac_sha256,
+    hmac256_utf16: hex_hmac_sha256,
+    hmac256: hex_hmac_sha256_utf8,
     hmac256_str: rstr_hmac_sha256,
     hmac256_b64: b64_hmac_sha256
   };

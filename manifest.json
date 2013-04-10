@@ -11,6 +11,7 @@
     "scripts": [
       "weave/client.js",
       "weave/util.js",
+      "weave/utf8.js",
       "weave/sha.js",
       "weave/pkcs5v2.js",
       "weave/aes.js",

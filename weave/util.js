@@ -99,12 +99,25 @@ Weave.Util = function() {
       return _arrayToString(ret);
   }
 
+  function _hexStringToArray(str) {
+    var ret = [];
+    if (str.length % 2 != 0) {
+      return false;
+    }
+    for (var i = 0; i < str.length; i += 2) {
+      var cur = str.charAt(i) + str.charAt(i + 1);
+      ret.push(parseInt(cur, 16));
+    }
+    return ret;
+  }
+
   return {
     XOR: _XOR,
     HtS: _hexToString,
     StH: _stringToHex,
     AtS: _arrayToString,
     StA: _stringToArray,
+    HtA: _hexStringToArray,
     intify: _intify,
     clearify: _clearify,
     randomBytes: _randomBytes
@@ -145,7 +158,6 @@ Weave.Util.makeGUID = function () {
     return guid;
 };
 
-
 /*
  * Generate a UUID according to RFC4122 v4 (random UUIDs)
  */
@@ -169,6 +181,54 @@ Weave.Util.makeUUID = function () {
 
     return uuid.join('');
 };
+
+Weave.Util.PassphraseHelper = (function() {
+    var SYNC_KEY_ENCODED_LENGTH=26;
+    var SYNC_KEY_DECODED_LENGTH=16;
+    var SYNC_KEY_HYPHENATED_LENGTH=31;
+
+    /**
+     * Turn RFC 4648 base32 into our own user-friendly version.
+     *   ABCDEFGHIJKLMNOPQRSTUVWXYZ234567
+     * becomes
+     *   abcdefghijk8mn9pqrstuvwxyz234567
+     */
+    function base32ToFriendly(input) {
+        return input.toLowerCase()
+            .replace("l", '8', "g")
+            .replace("o", '9', "g");
+    };
+
+    function base32FromFriendly(input) {
+        return input.toUpperCase()
+            .replace("8", 'L', "g")
+            .replace("9", 'O', "g");
+    };
+
+    function normalizePassphrase(pp) {
+        // Short var name... have you seen the lines below?!
+        // Allow leading and trailing whitespace.
+        pp = pp.trim().toUpperCase();
+
+        pp = pp.split("-").join("");
+
+        while(pp.length<32) pp = pp + "=";
+
+        // Something else -- just return.
+        return pp;
+    };
+
+    decodeKeyBase32: function decodeKeyBase32(encoded) {
+        var norm = normalizePassphrase(encoded);
+        var fromFriendly = base32FromFriendly(norm);
+        var decode = Weave.Util.Base32.decode(fromFriendly).output;
+        var decodeString = Weave.Util.AtS(decode);
+        return decodeString.slice(0,SYNC_KEY_DECODED_LENGTH);
+    };
+    return {
+        decodeKeyBase32:decodeKeyBase32
+    };
+}());
 
 Weave.Util.Base32 = (function() {
 	

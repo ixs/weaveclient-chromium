@@ -57,6 +57,9 @@ Weave.Client = (function () {
     var secure;
     var cache;
 
+    // Our extra input to SHA256-HMAC in generateEntry.
+    // This includes the full crypto spec; change this when our algo changes.
+    var HMAC_INPUT="Sync-AES_256_CBC-HMAC256";
 
     // A list of allowed WBO fields.
     // See https://wiki.mozilla.org/Labs/Weave/Sync/1.0/API
@@ -128,55 +131,6 @@ Weave.Client = (function () {
         }
     }
 
-
-    // This could be a lazy getter for cache.privkey, but we want to
-    // support as many browser platforms as possible.
-    function getPrivateKey () {
-        var key = cache.privkey;
-        if (key !== undefined) {
-            return key;
-        }
-
-        var encrypted = Weave.Util.Base64.decode(secure.privkey.keyData);
-        var iv = Weave.Util.Base64.decode(secure.privkey.iv);
-        var salt = Weave.Util.Base64.decode(secure.privkey.salt);
-        cache.privkey = decryptPrivateKey(encrypted, iv, salt);
-        return cache.privkey;
-    }
-
-    function decryptPrivateKey (key, iv, salt) {
-        // Generate a 256 bit symmetric key from passphrase using PBKDF2
-        var symmKey = Weave.Crypto.PKCS5.generate(
-            secure.passphrase, salt, 4096, 32);
-
-        // Unwrap RSA key with generated AES key
-        var ursaKey = Weave.Crypto.AES.decrypt(symmKey, iv, key);
-
-        // Extract RSA values from key using ASN.1 parser.
-        // Here is where we find out if the passphrase was incorrect.
-        var tag = Weave.Crypto.ASN1.PKCS1.parse(ursaKey);
-        if (!tag) {
-            throw "WRONG_PASSPHRASE";
-        }
-
-        // Use RSA key values to unwrap AES symmetric key
-        var rsa = new RSAKey();
-        rsa.setPrivateEx(tag[0], tag[1], tag[2], tag[3], tag[4], tag[5],
-                         tag[6], tag[7]);
-        return rsa;
-    }
-
-    // Unwrap and decrypt a symmetric key with the private key.
-    function unwrapSymmetricKey (wrappedSymkey) {
-        return Weave.Util.intify(
-            getPrivateKey().decrypt(
-                Weave.Util.StH(
-                    Weave.Util.Base64.decode(wrappedSymkey)
-                )
-            )
-        );
-    }
-
     /*** Public client API ***/
 
     function getUserStorageNode (callback, errback) {
@@ -192,6 +146,13 @@ Weave.Client = (function () {
                 // XXX Not sure having this kind of fallback logic in
                 // here is such a good idea...
                 secure.storageUrl = secure.server;
+
+                // Remove trainling slash from storageUrl.
+                var l = secure.storageUrl.length;
+                var char = secure.storageUrl.charAt(l-1);
+                if(char==="/") {
+                     secure.storageUrl = secure.storageUrl.substring(0,l-1);
+                }
             }
             callback();
         };
@@ -210,23 +171,43 @@ Weave.Client = (function () {
     }
 
     function getKeys (callback, errback) {
-        loadCollection('keys', {full: 1}, function (data) {
-            var keys = {};
-            data.forEach(function (wbo) {
-                keys[wbo.id] = JSON.parse(wbo.payload);
-            });
+        var keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
+                    "/storage/crypto/keys";
 
-            secure.privkey = keys.privkey;
-            secure.pubkey = keys.pubkey;
-            //TODO perhaps set cache.privkey (using setInterval) so
-            // that we can return to the callback immediately
+        var req = createRequest("GET", keyUri, errback);
+        req.onload = checkJSONBody(function (data) {
+                var payload = JSON.parse(data.payload);
+                var sync_key = Weave.Util.PassphraseHelper.decodeKeyBase32(secure.passphrase);
+                var encryption_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, HMAC_INPUT + secure.user + "\x01"));
+                var hmac_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, encryption_key + HMAC_INPUT + secure.user + "\x02"));
+                var hmac = Weave.Util.SHA.hmac256(hmac_key,payload.ciphertext);
 
+            if (hmac !== payload.hmac) {
+                return errback("KEY_HMAC_FAILED");
+            }
+
+            var data = JSON.parse(Weave.Crypto.AES.decrypt(
+                encryption_key,
+                Weave.Util.Base64.decode(payload.IV),
+                Weave.Util.Base64.decode(payload.ciphertext)
+            ));
+
+            cache.keys = {};
+
+            //cache default and collection keys
+            cache.keys["default"] = [Weave.Util.Base64.decode(data.default[0]),Weave.Util.Base64.decode(data.default[1])];
+
+            for(var i in data.collections) {
+                var keyPair = data.collections[i];
+                cache.keys[i] = [Weave.Util.Base64.decode(keyPair[0]),Weave.Util.Base64.decode(keyPair[1])];
+            }
             callback();
         }, errback);
+        req.send();
     }
 
     function ensureKeys (callback, errback) {
-        if (secure.privkey) {
+        if (cache.keys) {
             callback();
             return;
         }
@@ -253,91 +234,35 @@ Weave.Client = (function () {
         }, errback);
     }
 
-    function getBulkKey (uri, callback, errback) {
-        if (cache.bulkKeys === undefined) {
-            cache.bulkKeys = {};
-            cache.bulkKeyCallbacks = {};
-        }
-
-        // Get the key from our cache if available
-        var key = cache.bulkKeys[uri];
-        if (key !== undefined) {
-            callback(key);
-            return;
-        }
-
-        // It's possible that the key has been requested already but
-        // the response hasn't come back yet.  In that case let's
-        // remember the callback.
-        var callbacks = cache.bulkKeyCallbacks[uri];
-        if ((callbacks !== undefined) && callbacks.length) {
-            callbacks.push(callback);
-            return;
-        }
-
-        callbacks = cache.bulkKeyCallbacks[uri] = [callback];
-
-        var req = createRequest("GET", uri, errback);
-        req.onload = checkJSONBody(function (data) {
-            var keyring = JSON.parse(data.payload).keyring;
-            var keyWrapped = keyring[secure.privkey.publicKeyUri];
-
-            // Check whether the key has been tampered with by
-            // comparing the HMAC hash.  The key we use for this is
-            // the user's passphrase, the data is the bulk key in its
-            // base64 encoded form.
-            var hmac = Weave.Util.SHA.hmac256(secure.passphrase,
-                                              keyWrapped.wrapped);
-            if (hmac !== keyWrapped.hmac) {
-                return errback("KEY_HMAC_FAILED", uri, keyWrapped);
-            }
-
-            // Unwrap the bulk key, store it in cache and call
-            // callbacks in order.  We don't need to worry about an
-            // invalid passphrase here because the HMAC test above
-            // sorts that out already.
-            var key = unwrapSymmetricKey(keyWrapped.wrapped);
-            cache.bulkKeys[uri] = key;
-            var cb;
-            while (callbacks.length) {
-                cb = callbacks.shift();
-                cb(key);
-            }
-        }, errback);
-        req.send();
+    function getBulkKey (collection, callback, errback) {
+        callback(cache.keys[collection] || cache.keys['default']);
     }
 
     function decryptWBO (wbo, callback, errback) {
         var payload = JSON.parse(wbo.payload);
-        var keyUri;
-        if (secure.storageUrlOverrides) {
-            keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
-                     "/storage/crypto/" + wbo.collection;
-        } else {
-            keyUri = payload.encryption;
-        }
-        getBulkKey(keyUri, function (bulkkey) {
+        getBulkKey(wbo.collection, function (keypair) {
+            var enc_key = keypair[0];
+            var hmac_key = keypair[1];
+
             // Check whether the data has been tampered with by
             // comparing the HMAC hash.  They key used for this is the
             // bulk key, the data is the encrypted payload, both (!)
             // in base64 encoding.
-            var hmac = Weave.Util.SHA.hmac256(
-                Weave.Util.Base64.encode(bulkkey), payload.ciphertext);
+            var hmac = Weave.Util.SHA.hmac256(hmac_key,payload.ciphertext);
             if (hmac !== payload.hmac) {
                 return errback("WBO_HMAC_FAILED", wbo);
             }
 
             var data = Weave.Crypto.AES.decrypt(
-                bulkkey,
+                enc_key,
                 Weave.Util.Base64.decode(payload.IV),
                 Weave.Util.Base64.decode(payload.ciphertext)
             );
 
-            var data = JSON.parse(data);
+            var data = JSON.parse(UTF8.decode(data));
             for (var key in data) {
                 wbo[key] = data[key];
             }
-
             callback(wbo);
         }, errback);
     }
@@ -347,17 +272,17 @@ Weave.Client = (function () {
     function encryptWBO (wbo, collection, callback, errback) {
         //TODO check that secure.storageUrl etc. exist
         var keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
-                     "/storage/crypto/" + collection;
+                     "/storage/crypto/keys";
         //TODO check that object_fields[collection] exists
-        var cleartext = JSON.stringify(wbo, object_fields[collection]);
-        getBulkKey(keyUri, function (bulkkey) {
+        var cleartext = UTF8.encode(JSON.stringify(wbo, object_fields[collection]));
+        getBulkKey(collection, function (keypair) {
+            var enc_key = keypair[0];
+            var hmac_key = keypair[1];
             var iv = Weave.Util.randomBytes(16);
             var ciphertext = Weave.Util.Base64.encode(
-                Weave.Crypto.AES.encrypt(bulkkey, iv, cleartext));
-            var hmac = Weave.Util.SHA.hmac256(
-                Weave.Util.Base64.encode(bulkkey), ciphertext);
-            wbo.payload = JSON.stringify({encryption: keyUri,
-                                          ciphertext: ciphertext,
+                Weave.Crypto.AES.encrypt(enc_key, iv, cleartext));
+                var hmac = Weave.Util.SHA.hmac256(hmac_key, ciphertext);
+                wbo.payload = JSON.stringify({ciphertext: ciphertext,
                                           IV: Weave.Util.Base64.encode(iv),
                                           hmac: hmac});
             callback(wbo);
@@ -434,6 +359,7 @@ Weave.Client = (function () {
 
     function encryptPostCollection (collection, data, callback, errback) {
         var count = 0;
+        if(data.length===0) callback({success:true});
         data.forEach(function (wbo) {
             encryptWBO(wbo, collection, function (wbo) {
                 count += 1;
@@ -488,7 +414,6 @@ Weave.Client = (function () {
         decryptWBO: decryptWBO,
         // Some private helper methods we expose for unit testing
         getBulkKey: getBulkKey,
-        unwrapSymmetricKey: unwrapSymmetricKey,
 
         default_options: {
             client: null,  // object with id, name, type
@@ -497,9 +422,7 @@ Weave.Client = (function () {
             storageUrlOverrides: false,
             user: null,
             password: null,
-            passphrase: null,
-            privkey: null,  // object with iv, salt, keyData, publicKeyUri
-            pubkey: null   // object with keyData, privateKeyUri
+            passphrase: null
         }
     };
 
