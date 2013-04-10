@@ -19,6 +19,9 @@
  *
  * Contributor(s):
  *
+ * Martin Reckziegel
+ * Andreas Thienemann
+ *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
  * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -85,7 +88,7 @@ Weave.Client = (function () {
         // (e.g. Chrome).
         req.open(method, url, true);
         var authstring = Weave.Util.Base64.encode(
-            secure.user + ':' + secure.password);
+            hashUserName(secure.user) + ':' + secure.password);
         req.setRequestHeader('Authorization', 'Basic ' + authstring);
 
         req.onerror = function () {
@@ -111,6 +114,20 @@ Weave.Client = (function () {
             callback(data);
         };
     }
+
+    // If handed an email address as a username, hash it before using it.
+    function hashUserName (username) {
+        if (username.indexOf("@") != -1) {
+            return Weave.Util.Base32.encode(
+                Weave.Util.SHA.digest1_str(
+                    username.toLowerCase()
+                )
+            ).toLowerCase();
+        } else {
+            return username.toLowerCase();
+        }
+    }
+
 
     // This could be a lazy getter for cache.privkey, but we want to
     // support as many browser platforms as possible.
@@ -163,7 +180,7 @@ Weave.Client = (function () {
     /*** Public client API ***/
 
     function getUserStorageNode (callback, errback) {
-        var url = secure.server + "/user/1.0/" + secure.user + "/node/weave";
+        var url = secure.server + "/user/1.0/" + hashUserName(secure.user) + "/node/weave";
         var req = new XMLHttpRequest();
         // No need for authentication here
         req.open("GET", url, true);
@@ -294,7 +311,7 @@ Weave.Client = (function () {
         var payload = JSON.parse(wbo.payload);
         var keyUri;
         if (secure.storageUrlOverrides) {
-            keyUri = secure.storageUrl + "/1.0/" + secure.user +
+            keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                      "/storage/crypto/" + wbo.collection;
         } else {
             keyUri = payload.encryption;
@@ -329,7 +346,7 @@ Weave.Client = (function () {
     // wbo.collection to exist
     function encryptWBO (wbo, collection, callback, errback) {
         //TODO check that secure.storageUrl etc. exist
-        var keyUri = secure.storageUrl + "/1.0/" + secure.user +
+        var keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                      "/storage/crypto/" + collection;
         //TODO check that object_fields[collection] exists
         var cleartext = JSON.stringify(wbo, object_fields[collection]);
@@ -360,7 +377,7 @@ Weave.Client = (function () {
         if (query.length) {
             query = '?' + query.join('&');
         }
-        var url = secure.storageUrl + "/1.0/" + secure.user +
+        var url = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                   "/storage/" + collection + query;
         var req = createRequest("GET", url, errback);
         req.onload = checkJSONBody(callback, errback);
@@ -371,7 +388,7 @@ Weave.Client = (function () {
         if (secure.storageUrl === undefined) {
             return errback("MISSING_STORAGEURL");
         }
-        var url = secure.storageUrl + "/1.0/" + secure.user +
+        var url = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                   "/storage/" + collection;
         var req = createRequest("POST", url, errback);
         req.onload = checkJSONBody(callback, errback);
@@ -385,7 +402,7 @@ Weave.Client = (function () {
     //TODO errback-ify this
     function loadWBO (collection, id, callback) {
         //TODO check that secure.storageUrl is set
-        var url = secure.storageUrl + "/1.0/" + secure.user +
+        var url = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                   "/storage/" + collection + "/" + id + "?full=1";
 
         var req = createRequest("GET", url);

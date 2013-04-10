@@ -2,7 +2,7 @@
  * General purpose utilities.
  *
  * Written by Anant Narayanan, unless otherwise specified.
- * Contributions by Philipp von Weitershausen.
+ * Contributions by Philipp von Weitershausen, Martin Reckziegel, Andreas Thienemann
  *
  */
 Weave.Util = function() {
@@ -170,6 +170,85 @@ Weave.Util.makeUUID = function () {
     return uuid.join('');
 };
 
+Weave.Util.Base32 = (function() {
+	
+    function base32_decode(input) {
+		var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=";
+        var buffer = 0;
+        var bitsLeft = 0;    
+        var output = new Array();
+        var i = 0;
+        var count = 0;
+        
+        while (i < input.length) {
+            var val = keyStr.indexOf(input.charAt(i++));
+            if (val >= 0 && val < 32) {
+              buffer <<= 5;
+              buffer |= val;
+              bitsLeft += 5;
+              if (bitsLeft >= 8) {
+                output[count++] = (buffer >> (bitsLeft - 8)) & 0xFF;
+                bitsLeft -= 8;
+              }            
+            }                         
+        }
+        if (bitsLeft > 0) {
+          buffer <<= 5;    
+          output[count++] = (buffer >> (bitsLeft - 3)) & 0xFF;
+        }         
+        return {output : output, bitsLeft : bitsLeft};
+    }
+
+  /**
+   * Base32 encode (RFC 4648) a string
+   */
+  function encodeBase32(bytes) {
+    const key = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    var quanta = Math.floor(bytes.length / 5);
+    var leftover = bytes.length % 5;
+
+    // Pad the last quantum with zeros so the length is a multiple of 5.
+    if (leftover) {
+      quanta += 1;
+      for (var i = leftover; i < 5; i++)
+        bytes += "\0";
+    }
+
+    // Chop the string into quanta of 5 bytes (40 bits). Each quantum
+    // is turned into 8 characters from the 32 character base.
+    var ret = "";
+    for (var i = 0; i < bytes.length; i += 5) {
+//      var c = [byte.charCodeAt() for each (byte in bytes.slice(i, i + 5))];
+      var c = Array();
+      for (byte in bytes.slice(0, 0 + 5)) { c.push(bytes[byte].charCodeAt()) };
+      ret += key[c[0] >> 3]
+           + key[((c[0] << 2) & 0x1f) | (c[1] >> 6)]
+           + key[(c[1] >> 1) & 0x1f]
+           + key[((c[1] << 4) & 0x1f) | (c[2] >> 4)]
+           + key[((c[2] << 1) & 0x1f) | (c[3] >> 7)]
+           + key[(c[3] >> 2) & 0x1f]
+           + key[((c[3] << 3) & 0x1f) | (c[4] >> 5)]
+           + key[c[4] & 0x1f];
+    }
+
+    switch (leftover) {
+      case 1:
+        return ret.slice(0, -6) + "======";
+      case 2:
+        return ret.slice(0, -4) + "====";
+      case 3:
+        return ret.slice(0, -3) + "===";
+      case 4:
+        return ret.slice(0, -1) + "=";
+      default:
+        return ret;
+    }
+  };
+  return {
+    decode: base32_decode,
+    encode: encodeBase32
+	};
+}());
 
 /*
  * The JavaScript implementation of Base 64 encoding scheme
