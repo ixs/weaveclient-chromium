@@ -1,12 +1,30 @@
 {
+  "manifest_version": 2,
   "name": "Weave Sync",
-  "version": "0.1",
+  "version": "0.2",
   "description": "Synchronize tabs and bookmarks with the Mozilla Weave service",
   "icons": {
     "48": "skin/sync-48x48.png",
     "128": "skin/sync-128x128.png"
   },
-  "background_page": "background.html",
+  "background": {
+    "scripts": [
+      "weave/client.js",
+      "weave/util.js",
+      "weave/sha.js",
+      "weave/pkcs5v2.js",
+      "weave/aes.js",
+      "weave/asn1.js",
+      "weave/chromium.js",
+      "jsbn/jsbn.js",
+      "jsbn/jsbn2.js",
+      "jsbn/prng4.js",
+      "jsbn/rng.js",
+      "jsbn/rsa.js",
+      "jsbn/rsa2.js",
+      "background.js"
+    ]
+  },
   "browser_action": {
     "default_title": "Weave Sync",
     "default_icon": "skin/sync-32x32.png",
@@ -15,6 +33,6 @@
   "options_page": "options.html",
   "permissions": [
     "tabs", "bookmarks",
-    "https://*.services.mozilla.com/"
+    "<all_urls>"
   ]
 }
