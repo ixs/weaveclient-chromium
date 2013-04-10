@@ -67,6 +67,14 @@ Weave.Chromium = {
         localStorage.options = JSON.stringify(this.options);
     },
 
+    clearCache: function () {
+        delete localStorage['bookmarks'];
+        delete localStorage['tabs'];
+        delete localStorage['bookmark.folders'];
+        delete localStorage['bookmark.chromeIDs'];
+        this.init();
+    },
+
     connect: function () {
         var self = this;
         //TODO ensure that we're configured (user, password, etc.)
