@@ -420,6 +420,7 @@ Weave.Client = (function () {
         getUserStorageNode: getUserStorageNode,
         ensureUserStorageNode: ensureUserStorageNode,
         ensureClientGUID: ensureClientGUID,
+        checkStorageVersion: checkStorageVersion,
         getKeys: getKeys,
         ensureKeys: ensureKeys,
         loadCollection: loadCollection,
