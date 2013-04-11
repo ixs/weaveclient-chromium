@@ -89,10 +89,12 @@ Weave.Chromium = {
 
         Weave.Client.connect(this.options);
         Weave.Client.ensureUserStorageNode(function () {
-            Weave.Client.ensureKeys(function () {
-                Weave.Client.ensureClientGUID(function () {
-                    self.status = "connected";
-                    self.sendEvent("WeaveSyncConnected");
+            Weave.Client.checkStorageVersion(function() {
+                Weave.Client.ensureKeys(function () {
+                    Weave.Client.ensureClientGUID(function () {
+                        self.status = "connected";
+                        self.sendEvent("WeaveSyncConnected");
+                    },errback);
                 },errback);
             },errback);
         },errback);

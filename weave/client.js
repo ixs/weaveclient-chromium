@@ -61,6 +61,9 @@ Weave.Client = (function () {
     // This includes the full crypto spec; change this when our algo changes.
     var HMAC_INPUT="Sync-AES_256_CBC-HMAC256";
 
+    // The storage version we support
+    var SUPPORTED_STORAGE_VERSION = 5;
+
     // A list of allowed WBO fields.
     // See https://wiki.mozilla.org/Labs/Weave/Sync/1.0/API
     var wbo_fields = ["id",
@@ -146,13 +149,12 @@ Weave.Client = (function () {
                 // XXX Not sure having this kind of fallback logic in
                 // here is such a good idea...
                 secure.storageUrl = secure.server;
-
-                // Remove trainling slash from storageUrl.
-                var l = secure.storageUrl.length;
-                var char = secure.storageUrl.charAt(l-1);
-                if(char==="/") {
-                     secure.storageUrl = secure.storageUrl.substring(0,l-1);
-                }
+            }
+            // Remove trainling slash from storageUrl.
+            var l = secure.storageUrl.length;
+            var char = secure.storageUrl.charAt(l-1);
+            if(char==="/") {
+                secure.storageUrl = secure.storageUrl.substring(0,l-1);
             }
             callback();
         };
@@ -168,6 +170,21 @@ Weave.Client = (function () {
             return;
         }
         getUserStorageNode(callback, errback);
+    }
+
+    function checkStorageVersion (callback, errback) {
+        var keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
+                    "/storage/meta/global";
+
+        var req = createRequest("GET", keyUri, errback);
+        req.onload = checkJSONBody(function (data) {
+                var payload = JSON.parse(data.payload);
+                if (payload['storageVersion'] != SUPPORTED_STORAGE_VERSION) {
+                    return errback("STORAGE_VERSION_MISMATCH");
+                }
+                callback();
+        }, errback);
+        req.send();
     }
 
     function getKeys (callback, errback) {
