@@ -119,7 +119,7 @@ Weave.Chromium = {
         var self = this;
         function areWeDoneYet () {
             count += 1;
-            if (count === 2) {
+            if (count === 1) {
                 self.status = "connected";
                 self.sendEvent("WeaveSyncSyncEnd");
             }
@@ -127,7 +127,7 @@ Weave.Chromium = {
 
         //TODO these should be running after each other, not in parallel
         Weave.Chromium.Tabs.sync(areWeDoneYet);
-        Weave.Chromium.Bookmarks.sync(areWeDoneYet);
+//        Weave.Chromium.Bookmarks.sync(areWeDoneYet);
     },
 
     sendEvent: function (type) {
@@ -220,21 +220,27 @@ Weave.Chromium.Bookmarks = {
     wbos: null,
     lastSync: null, //TODO
 
-    folders: null,   // folder name --> chrome ID
+    rootMapping: {
+        "toolbar":"1",
+        "menu":"2"
+    },
     chromeIDs: null, // chrome ID --> WBO ID
 
 
     init: function () {
         if (localStorage[this.collection]) {
             this.wbos = JSON.parse(localStorage[this.collection]);
-            this.folders = JSON.parse(localStorage['bookmark.folders']);
             this.chromeIDs = JSON.parse(localStorage['bookmark.chromeIDs']);
             return;
         }
 
         this.wbos = {};
-        this.folders = {};
+        //initially map chrome root folders to firefox root folders
         this.chromeIDs = {};
+        for (var i in this.rootMapping) {
+            this.chromeIDs[this.rootMapping[i]] = i;
+        }
+
         this.save();
     },
 
@@ -257,13 +263,10 @@ Weave.Chromium.Bookmarks = {
         });
     },
 
-    wboToBookmark: function (defaultParent, wbo) {
+    wboToBookmark: function (defaultParent, wbo, callback) {
+        var self = this;
         var params;
-
-        var parentId = this.folders[wbo.parentName];
-        if (parentId === undefined) {
-            parentId = defaultParent.id;
-        }
+        var parentId = defaultParent.id;
 
         switch (wbo.type) {
         case "bookmark":
@@ -284,20 +287,23 @@ Weave.Chromium.Bookmarks = {
             break;
 
         default:
+            if(callback) callback();
             return;
         }
 
-        console.debug("New bookmark", params);
+        //process special root wbos
+        if(this.rootMapping[wbo.id]) {
+            wbo.chromeID = this.rootMapping[wbo.id];
+            if(callback) callback();
+        } else {
+            console.debug("New bookmark", params);
 
-        var self = this;
-        chrome.bookmarks.create(params, function (node) {
-            wbo.chromeID = node.id;
-            self.chromeIDs[node.id] = wbo.id;
-            self.wbos[wbo.id] = wbo;
-            if (wbo.type === "folder") {
-                self.folders[wbo.title] = node.id;
-            }
-        });
+            chrome.bookmarks.create(params, function (node) {
+                wbo.chromeID = node.id;
+                self.chromeIDs[node.id] = wbo.id;
+                if(callback) callback();
+            });
+        };
     },
 
     bookmarkToWBO: function (node) {
@@ -328,6 +334,7 @@ Weave.Chromium.Bookmarks = {
     // Receives new WBOs, returns a list of WBOs to be updated (via callback)
     syncWBOs: function (data, callback) {
         var self = this;
+        var wbos = this.wbos;
 
         chrome.bookmarks.getTree(function (topNodes) {
             // Is there ever going to be more than one top node?
@@ -335,31 +342,70 @@ Weave.Chromium.Bookmarks = {
             // e.g. "Bookmarks Bar" and "Other Bookmarks"
             topNodes = topNodes[0].children;
 
+            //chrome bookmark api is async, so we need to track how many items are processed already
+            var count = data.length;
+
+            var onProcessItem = function() {
+                count--;
+                if(count>0) return;
+                //this should reorder a chrome node considering the desired wbo structure if the parent is available
+                function reorderNode (node) {
+                    var wbo = self.wbos[self.chromeIDs[node.id]];
+                    if(wbo) {
+                        var targetWBOParent = self.wbos[wbo.parentid];
+                        if(targetWBOParent) {
+                            var targetChromeParentId = targetWBOParent.chromeID;
+                            //move node if necessary
+                            if(targetChromeParentId !== node.parentId) {
+                                chrome.bookmarks.move(node.id,{parentId: targetChromeParentId});
+                            }
+                        }
+                    }
+                    if (node.children) {
+                        node.children.forEach(reorderNode);
+                    }
+                }
+                chrome.bookmarks.getTree(function(rootNodes){
+                    rootNodes.forEach(reorderNode);
+                });
+            }
+
+
             // Process new and updated bookmarks
             data.forEach(function (newwbo) {
                 var wbo = self.wbos[newwbo.id];
                 if (wbo === undefined) {
-                    self.wboToBookmark(topNodes[0], newwbo);
+                    self.wbos[newwbo.id] = newwbo;
+                    self.wboToBookmark(topNodes[1], newwbo,onProcessItem);
                     return;
+                }
+
+                if(newwbo.deleted===true && self.rootMapping[wbo.id]===undefined && wbo.chromeID) {
+                    console.debug("remove Bookmark:",wbo);
+                    chrome.bookmarks.remove(wbo.chromeID);
+                    delete wbo.chromeID;
                 }
 
                 // Bookmark is already present.  Check if it has changed.
                 if (newwbo.modified > wbo.modified) {
-                    //TODO check whether the bookmark has changed its
-                    // position (parent, index, etc.).  Check for folder
-                    // renames (waaa!)
-                    chrome.bookmarks.update(wbo.chromeID, {
-                        title: newwbo.title,
-                        url: newwbo.bmkUri
-                    });
+                    //check if the wbo has an associated chrome bookmark and that its not one of the special root folders
+                    if(self.rootMapping[wbo.id]===undefined && wbo.chromeID) {
+                        chrome.bookmarks.update(wbo.chromeID, {
+                            title: newwbo.title,
+                            url: newwbo.bmkUri
+                        });
+                    }
                     for (var key in newwbo) {
                         wbo[key] = newwbo[key];
                     }
                 }
+                onProcessItem();
             });
 
+            //TODO: two way sync
             // Push WBOs out for new and updated (TODO) bookmarks
             var wbos = [];
+            /*
             function walkNode (node) {
                 if (self.chromeIDs[node.id] === undefined) {
                     var wbo = self.bookmarkToWBO(node);
@@ -374,6 +420,7 @@ Weave.Chromium.Bookmarks = {
             }
 
             topNodes.forEach(walkNode);
+            */
             self.save();
             callback(wbos);
         });
