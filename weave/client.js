@@ -195,8 +195,8 @@ Weave.Client = (function () {
         req.onload = checkJSONBody(function (data) {
                 var payload = JSON.parse(data.payload);
                 var sync_key = Weave.Util.PassphraseHelper.decodeKeyBase32(secure.passphrase);
-                var encryption_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, HMAC_INPUT + secure.user + "\x01"));
-                var hmac_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, encryption_key + HMAC_INPUT + secure.user + "\x02"));
+                var encryption_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, HMAC_INPUT + hashUserName(secure.user) + "\x01"));
+                var hmac_key = Weave.Util.HtS(Weave.Util.SHA.hmac256(sync_key, encryption_key + HMAC_INPUT + hashUserName(secure.user) + "\x02"));
                 var hmac = Weave.Util.SHA.hmac256(hmac_key,payload.ciphertext);
 
             if (hmac !== payload.hmac) {
