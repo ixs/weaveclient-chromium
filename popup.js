@@ -28,6 +28,7 @@ function onLoad () {
         onSyncBegin();
         break;
     }
+    updateSyncTime();
 }
 
 // Open a page within this extension
@@ -73,6 +74,15 @@ function onSyncButton () {
     Weave.Chromium.sync();
 }
 
+// Helper functions
+function updateSyncTime () {
+    if (localStorage["lastSync"] !== null) {
+        date = new Date(localStorage["lastSync"]);
+        jQuery('time').text(date.getHours() + ":" + date.getMinutes());
+    } else {
+        jQuery('time').text("never");
+    }
+}
 
 // Event handlers for updating the UI when Weave.Chromium does something
 
@@ -109,6 +119,7 @@ function onSyncEnd () {
     button.text('Sync now');
     jQuery('#sync-button').removeAttr('disabled');
     jQuery('#connect-button').removeAttr('disabled');
+    updateSyncTime();
 }
 
 document.addEventListener('DOMContentLoaded', function () {

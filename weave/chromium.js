@@ -44,7 +44,6 @@ Weave.Chromium = {
     init: function () {
         Weave.Chromium.Tabs.init();
         Weave.Chromium.Bookmarks.init();
-
         if (localStorage.options) {
             this.options = JSON.parse(localStorage.options);
             return;
@@ -89,7 +88,7 @@ Weave.Chromium = {
 
         Weave.Client.connect(this.options);
         Weave.Client.ensureUserStorageNode(function () {
-            Weave.Client.checkStorageVersion(function() {
+            Weave.Client.ensureMetaRecord(function() {
                 Weave.Client.ensureKeys(function () {
                     Weave.Client.ensureClientGUID(function () {
                         self.status = "connected";
@@ -128,6 +127,11 @@ Weave.Chromium = {
         //TODO these should be running after each other, not in parallel
         Weave.Chromium.Tabs.sync(areWeDoneYet);
 //        Weave.Chromium.Bookmarks.sync(areWeDoneYet);
+        this.updateLastSync();
+    },
+
+    updateLastSync: function () {
+        localStorage["lastSync"] = new Date().toJSON();
     },
 
     sendEvent: function (type) {

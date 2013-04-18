@@ -50,7 +50,7 @@ var Weave = {
 Weave.Client = (function () {
 
     /*** Private functions ***/
-
+    var count = 0;
     // These hold security sensitive information (credentials, private
     // keys, etc.), which we mustn't expose to the outside.  It's
     // undefined when not connected.
@@ -172,7 +172,7 @@ Weave.Client = (function () {
         getUserStorageNode(callback, errback);
     }
 
-    function checkStorageVersion (callback, errback) {
+    function ensureMetaRecord (callback, errback) {
         var keyUri = secure.storageUrl + "/1.0/" + hashUserName(secure.user) +
                     "/storage/meta/global";
 
@@ -182,6 +182,13 @@ Weave.Client = (function () {
                 if (payload['storageVersion'] != SUPPORTED_STORAGE_VERSION) {
                     return errback("STORAGE_VERSION_MISMATCH");
                 }
+                if ('syncID' in secure) {
+                    // TODO
+                } else {
+                    secure['syncID'] = payload['syncID'];
+                }
+                console.log(payload['syncID']);
+
                 callback();
         }, errback);
         req.send();
@@ -420,7 +427,7 @@ Weave.Client = (function () {
         getUserStorageNode: getUserStorageNode,
         ensureUserStorageNode: ensureUserStorageNode,
         ensureClientGUID: ensureClientGUID,
-        checkStorageVersion: checkStorageVersion,
+        ensureMetaRecord: ensureMetaRecord,
         getKeys: getKeys,
         ensureKeys: ensureKeys,
         loadCollection: loadCollection,
@@ -440,7 +447,9 @@ Weave.Client = (function () {
             storageUrlOverrides: false,
             user: null,
             password: null,
-            passphrase: null
+            passphrase: null,
+            lastSync: null,
+            syncId: null,
         }
     };
 
