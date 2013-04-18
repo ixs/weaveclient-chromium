@@ -1,27 +1,24 @@
-Weave Sync for Chromium
+Firefox Sync for Chromium
 =======================
 
 This is an EXPERIMENTAL extension for the Google Chrome browser
 (a.k.a. Chromium).  It allows one to synchronize bookmarks and tabs
-with Mozilla's Weave service.
+with the Firefox Sync service.
 
-As Google Chrome extensions are implemented in pure JavaScript, this
-essentially contains a Weave client implementation in that language.
-It can therefore be used in other browsers as well, for instance by
-embedding it into a website.  However, since AJAX requests are subject
-to the same-origin policy, queries to the Weave storage nodes will not
-work directly but have to be handled by the web application in
-question and then forwarded to the corresponding Weave storage node.
-A simple application of this kind for the Google App Engine platform
-is contained in this directory as well.  It can be tried out under
-http://weavebrowser.appspot.com.
+Right now this extension is far from feature complete but it can talk to the
+sync server and read and write data.
+
+Development is ongoing.
 
 
 Credits
 -------
 
-* Philipp von Weitershausen wrote the JavaScript Weave client and this
-  extension.
+* Philipp von Weitershausen wrote the JavaScript Weave client and the
+  initial Extension (https://bitbucket.org/philikon/weaveclient-chromium/)
+
+* Martin Reckziegel wrote most of the support for the Sync Storage Format
+  Version 5 (https://bitbucket.org/derMart/ff-sync-client-chromium)
 
 * Anant Narayanan put together many of the cryptographic building
   blocks in the 'weaveweb' project.
@@ -33,5 +30,21 @@ Credits
 * Paul Johnston et.al. implemented the SHA1 and SHA256 algorithms
   (weave/sha.js).
 
+* Jonas Raoni Soares Silva for utf-8 utilities (weave/utf8.js)
+
 * The style elements (logos, background, etc.) were copied from the
   Weave Sync add-on for Firefox, created by Mozilla Corporation.
+
+
+License
+-------
+
+The Chrome extension itself, the ASN1 parser and the PKCS5v2 routines are
+triple-licensed under the MPL1.1 or the GPL2+ or the LGPL2.1+
+
+The AES crypto routines are licensed under the GPL2+.
+
+The SHA hashing routines are licensed under the 4 clause BSD license.
+
+The UTF-8 handling routines are licensed for modification and distribution
+as long as the original author credits are kept as-is.
