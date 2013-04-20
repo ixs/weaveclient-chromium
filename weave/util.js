@@ -127,35 +127,13 @@ Weave.Util = function() {
 
 /*
  * Generate a brand-new globally unique identifier (GUID).
- *
- * Subject to the Mozilla Public License Version 1.1
- * The Original Code is Bookmarks Sync.
- * The Initial Developer of the Original Code is Mozilla.
- *
  */
 Weave.Util.makeGUID = function () {
-    // 70 characters that are not-escaped URL-friendly
-    var code =
-      "!()*-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~";
-
-    var guid = "";
-    var num = 0;
-    var val;
-
-    // Generate ten 70-value characters for a 70^10 (~61.29-bit) GUID
-    for (var i = 0; i < 10; i++) {
-      // Refresh the number source after using it a few times
-      if (i == 0 || i == 5)
-        num = Math.random();
-
-      // Figure out which code to use for the next GUID character
-      num *= 70;
-      val = Math.floor(num);
-      guid += code[val];
-      num -= val;
+    var rnd = new Array();
+    for (var i = 0; i < 9; i++) {
+        rnd.push(Math.floor(Math.random() * 256));
     }
-
-    return guid;
+    return Weave.Util.Base64.encode(Weave.Util.AtS(rnd)).replace(/\+/g, '-').replace(/\//, '_');
 };
 
 /*
