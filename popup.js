@@ -1,6 +1,9 @@
 var background = chrome.extension.getBackgroundPage();
 var Weave = background.Weave;
 
+var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+
 function onLoad () {
     jQuery('#connect-button').click(onItemClick(onConnectButton));
     jQuery('#sync-button').click(onItemClick(onSyncButton));
@@ -78,7 +81,7 @@ function onSyncButton () {
 function updateSyncTime () {
     if (localStorage["lastSync"] !== null) {
         date = new Date(localStorage["lastSync"]);
-        jQuery('time').text(date.getHours() + ":" + date.getMinutes());
+        jQuery('time').text(this.days[date.getDay()] + " " + date.getHours() + ":" + date.getMinutes());
     } else {
         jQuery('time').text("never");
     }
