@@ -8,7 +8,7 @@
   <link rel="stylesheet" type="text/css" href="skin/theme.css" />
   <style>
 body {
-    width: 400px;
+    width: 500px;
 }
 
 fieldset {
@@ -31,6 +31,12 @@ legend {
     padding-right: 10px;
 }
 
+.itemlist {
+    font-weight: normal;
+    text-align: right;
+    padding-right: 5px;  
+}
+
 input {
     width: 100%;
     height: 16px;
@@ -47,27 +53,22 @@ input {
 <body>
 <div id="content">
 
-<h1>Weave Sync Options</h1>
+<h1>Firefox Sync Options</h1>
 
 <fieldset id="options">
 <legend>Options</legend>
 
 <table id="fieldstable">
   <tr>
-    <td class="label"><label for="clientGUID">Client GUID:</label></td>
-    <td id="clientGUID"></td>
-  </tr>
-  <tr>
     <td class="label"><label for="server">Server:</label></td>
     <td><input id="server" type="text" /></td>
   </tr>
   <tr>
-    <td class="label"><label for="user">Username:</label></td>
+    <td class="label"><label for="user">Account:</label></td>
     <td><input id="user" type="text" /></td>
   </tr>
   <tr>
     <td class="label"><label for="password">Password:</label></td>
-    <!-- TODO should be type="password" -->
     <td><input id="password" type="password" /></td>
   </tr>
   <tr>
@@ -78,10 +79,44 @@ input {
 </table>
 </fieldset>
 
+<fieldset id="devname">
+<legend>Device settings</legend>
+
+<table id="fieldstable">
+  <tr>
+    <td class="label"><label for="clientGUID">Client GUID:</label></td>
+    <td id="clientGUID"></td>
+  </tr>
+    <td class="label"><label for="devname">Device name:</label></td>
+    <td><input id="devname" type="text" /></td>
+  </tr>
+</table>
+</fieldset>
+
+<fieldset id="syncitems">
+<legend>Sync Items</legend>
+
+<table id="fieldstable">
+  <tr>
+    <td class="itemlist"><input id="bookmarks" type="checkbox" /></td>
+    <td>Bookmarks</td>
+  </tr>
+  <tr>
+    <td class="itemlist"><input id="history" type="checkbox" /></td>
+    <td>History</td>
+  </tr>
+  <tr>
+    <td class="itemlist"><input id="tabs" type="checkbox" /></td>
+    <td>Tabs</td>
+  </tr>
+</table>
+</fieldset>
+
 <div id="buttons">
   <button id="connect-button">Connect</button>
   <button id="reset-button">Reset</button>
   <button id="clear-button">Clear Cache</button>
+  <button id="unlink-button">Unlink device</button>
   <button id="sync-button"
           disabled="disabled">Sync</button>
 </div>
